@@ -1,0 +1,32 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "wikipedia_genero_analisis"
+version = "0.0.1"
+description = "Este proyecto se enfoca en analizar la brecha de g\u00e9nero en Wikipedia en espa\u00f1ol, utilizando t\u00e9cnicas de aprendizaje autom\u00e1tico y an\u00e1lisis de datos. El objetivo es identificar y entender las diferencias de representaci\u00f3n entre g\u00e9neros dentro de los art\u00edculos de Wikipedia, con el fin de visibilizar posibles disparidades y proponer mejoras en la equidad de contenido en la plataforma. A trav\u00e9s de este an\u00e1lisis, se busca contribuir a una Wikipedia m\u00e1s inclusiva y equilibrada."
+authors = [
+  { name = "grupo 24" },
+]
+
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    
+]
+requires-python = "~=3.12.6"
+
+[tool.black]
+line-length = 99
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+)/
+'''
+
+[tool.ruff.lint.isort]
+known_first_party = ["wikipedia_genero_analisis"]
+force_sort_within_sections = true
