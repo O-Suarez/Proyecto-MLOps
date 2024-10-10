@@ -1,0 +1,15 @@
+# Data Science
+pandas
+numpy
+matplotlib
+seaborn
+scipy
+scikit-learn
+plotly
+jupyterlab
+ipykernel
+notebook
+xlrd
+openpyxl
+requests
+jupyterlab

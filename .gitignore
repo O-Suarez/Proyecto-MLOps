@@ -1,6 +1,7 @@
 # Data
 /data/
 
+
 # Mac OS-specific storage files
 .DS_Store
 
@@ -139,6 +140,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+env_data/
 
 # Spyder project settings
 .spyderproject
