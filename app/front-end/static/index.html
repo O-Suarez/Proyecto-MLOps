@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Prediccion usando el mejor modelo</title>
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
+  <!-- Custom styles for this template -->
+  <link href="css/style.css" rel="stylesheet">
+  <link href="css/responsive.css" rel="stylesheet">
+</head>
+<body>
+  <div class="hero_area">
+    <!-- Header section starts -->
+    <header class="header_section">
+      <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg custom_nav-container ">
+          <a class="navbar-brand" href="index.html">
+            <span>Proyecto: Desigualdad de genero en wikipedia</span>
+          </a>
+          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class=""> </span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav ml-auto">
+              <li class="nav-item active">
+                <a class="nav-link" href="index.html">Predecir</a>
+              </li>
+              <li class="nav-item active">
+                <a class="nav-link" href="train.html">Entrenar</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="model.html">Mejor Modelo</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="search.html">Busqueda de parametros</a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </div>
+    </header>
+    <!-- End header section -->
+    <!-- Slider section -->
+    <section class="slider_section ">
+      <div class="container ">
+        <div class="row">
+          <div class="col-lg-7 col-md-8 mx-auto">
+            <div class="detail-box">
+              <h1>
+                Prueba el mejor modelo
+              </h1>
+              <p>
+               Ingresa los datos para realizar la predicción
+              </p>
+            </div>
+          </div>
+        </div>
+        <!-- API JS Script -->
+        <div class="find_container " style="display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 10px;">
+        <div id="api-predict" class="detail-box">
+          <form id="predictForm">
+            <label for="NEds">Number of Edits (NEds):</label>
+            <input type="number" id="NEds" name="NEds" required><br><br>
+            
+            <label for="NActDays">Number of Active Days (NActDays):</label>
+            <input type="number" id="NActDays" name="NActDays" required><br><br>
+            
+            <label for="pagesWomen">Pages about Women (pagesWomen):</label>
+            <input type="number" id="pagesWomen" name="pagesWomen" required><br><br>
+            
+            <label for="wikiprojWomen">Women Wikipedia Projects (wikiprojWomen):</label>
+            <input type="number" id="wikiprojWomen" name="wikiprojWomen" required><br><br>
+            
+
+            
+            <div class="btn-box" style="display: flex; flex-direction: row;">
+              <button type="submit" class="btn " style="  margin: auto; margin-top: 10px;">Predecir</button> 
+              <div id="datosPrueba" style="display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 10px;">
+                <button type="button" id="fetchTestRow" class="btn">Obtener datos de prueba</button>
+                <label for="genderType">Tipo de Género:</label>
+                <select id="genderType" name="genderType">
+                    <option value="0">Desconocido</option>
+                    <option value="1">Hombre</option>
+                    <option value="2">Mujer</option>
+                </select>
+            </div>  
+            </div>
+            
+          </form>
+          <br><br>
+          <div class="detail-box">
+            <label id="expectedResultlbl">Resultado Esperado:</label>
+            <input id="expectedResult"><br><br>
+            
+            <label id="resultlbl">Resultado Obtenido:</label>
+            <input id="result"><br><br>
+          </div>
+        </div>
+      </div>
+
+        
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          // Function to map class numbers to labels
+          function getClassLabel(classNumber) {
+            switch(Number(classNumber)) {
+              case 0:
+                return "Desconocido";
+              case 1:
+                return "Hombre";
+              case 2:
+                return "Mujer";
+              default:
+                return "Error: Clase no identificada " + classNumber;
+            }
+          }
+        
+          document.getElementById("predictForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+            // Retrieve form data
+            const classifierType = "none";
+            const hyperparameters = {};
+            const NEds = parseInt(document.getElementById("NEds").value);
+            const NActDays = parseInt(document.getElementById("NActDays").value);
+            const pagesWomen = parseInt(document.getElementById("pagesWomen").value);
+            const wikiprojWomen = parseInt(document.getElementById("wikiprojWomen").value);
+            const genderType = parseInt(document.getElementById("genderType").value);
+            const additionalData = [];
+        
+            // Prepare data payload for the API
+            const data = {
+              classifier_type: classifierType,
+              hyperparameters: hyperparameters,
+              NEds: NEds,
+              NActDays: NActDays,
+              pagesWomen: pagesWomen,
+              wikiprojWomen: wikiprojWomen,
+              gender_type: genderType,
+              additional_data: additionalData
+            };
+        
+            try {
+              // Send a POST request to the prediction API endpoint
+              const response = await fetch("http://localhost:8887/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+              });
+        
+              const result = await response.json();
+              if (result.predictions !== undefined) {
+                const predictionLabel = getClassLabel(result.predictions);
+                document.getElementById("result").value = `${predictionLabel}`;
+              } else {
+                document.getElementById("result").value = `Error: ${result.error || "Error desconocido"}`;
+              }
+              
+            } catch (error) {
+              document.getElementById("result").value = `Error: ${error.message}`;
+            }
+          });
+        
+          document.getElementById("fetchTestRow").addEventListener("click", async function() {
+            try {
+                // Fetch a test row from the server
+                const genderType = parseInt(document.getElementById("genderType").value);
+                const response = await fetch("http://localhost:8887/fetch_test_row", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ gender_type: genderType })
+                });
+
+                const result = await response.json();
+                if (result.row) {
+                    // Populate form fields with the fetched data
+                    document.getElementById("NEds").value = result.row.E_NEds;
+                    document.getElementById("NActDays").value = result.row.NActDays;
+                    document.getElementById("pagesWomen").value = result.row.pagesWomen;
+                    document.getElementById("wikiprojWomen").value = result.row.wikiprojWomen;
+
+                    // Update and show the expected result label
+                    const expectedLabel = getClassLabel(result.expected);
+                    document.getElementById("expectedResult").value = `${expectedLabel}`;
+                } else {
+                    document.getElementById("expectedResult").value = "";
+                    document.getElementById("expectedResult").style.display = "none";
+                }
+
+            } catch (error) {
+                document.getElementById("expectedResult").innerText = `Error: ${error.message}`;
+                document.getElementById("expectedResult").style.display = "block";
+            }
+            document.getElementById("result").value = "";
+        });
+        });
+        </script>
+      </div>
+    </section>
+    <!-- End slider section -->
+  </div>
+  <!-- jQery -->
+  <script src="js/jquery-3.4.1.min.js"></script>
+  <!-- bootstrap js -->
+  <script src="js/bootstrap.js"></script>
+</body>
+</html>

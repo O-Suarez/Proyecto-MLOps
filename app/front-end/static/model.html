@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Parámetros del Mejor Modelo</title>
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
+  <!-- Custom styles for this template -->
+  <link href="css/style.css" rel="stylesheet">
+  <link href="css/responsive.css" rel="stylesheet">
+  <style>
+    .central-align {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .model-box {
+      background-color: #333;
+      padding: 20px;
+      margin: 15px;
+      border-radius: 10px;
+      color: white;
+      width: 60%;
+    }
+    .mlflow-link {
+      color: #1DB954;
+      text-decoration: underline;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero_area">
+    <!-- Header section starts -->
+    <header class="header_section">
+      <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg custom_nav-container">
+          <a class="navbar-brand" href="index.html">
+            <span>Proyecto: Desigualdad de género en Wikipedia</span>
+          </a>
+          <button class="navbar-toggler" type="button" data-toggle="collapse"
+                  data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                  aria-expanded="false" aria-label="Toggle navigation">
+            <span class=""> </span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav ml-auto">
+              <li class="nav-item">
+                <a class="nav-link" href="index.html">Predecir</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="train.html">Entrenar</a>
+              </li>
+              <li class="nav-item active">
+                <a class="nav-link" href="model.html">Mejor Modelo</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="search.html">Búsqueda de Parámetros</a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </div>
+    </header>
+    <!-- End header section -->
+
+    <!-- Best Model Section -->
+    <section class="slider_section">
+      <div class="container central-align">
+        <div class="detail-box">
+          <h1>Mejor Modelo</h1>
+          <p>Detalles del mejor modelo de cada tipo entrenado.</p>
+        </div>
+        <div id="modelResults" class="central-align">
+          <!-- Best model parameters will be dynamically added here -->
+        </div>
+        <!-- Loading Icon -->
+        <img id="loadingIcon" src="images/loading.gif" alt="Cargando..." style="display: none; width: 50px; height: 50px; margin-top: 25px;">
+      </div>
+
+      <script>
+        document.addEventListener("DOMContentLoaded", async function() {
+          const modelResultsDiv = document.getElementById("modelResults");
+          const loadingIcon = document.getElementById("loadingIcon");
+
+          async function getBestModel(modelType) {
+            try {
+              const response = await fetch(`http://localhost:8887/get_best_model`, {
+                method: "POST",
+                headers: { 
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  experiment_name: "wikipedia",
+                  metric_name: "accuracy",
+                  classifier_type: modelType
+                })
+              });
+
+              if (!response.ok) {
+                throw new Error(`Error obteniendo el mejor modelo de tipo ${modelType}`);
+              }
+
+              const modelData = await response.json();
+              return modelData;
+            } catch (error) {
+              console.error(error);
+              return { error: true, message: error.message };
+            }
+          }
+
+          async function showBestModel(modelType, modelName) {
+            // Show loading icon if response takes more than 3 seconds
+            let loadingTimeout = setTimeout(() => {
+              loadingIcon.style.display = 'block';
+            }, 3000);
+
+            const modelData = await getBestModel(modelType);
+
+            // Clear the loading timeout and hide the loading icon
+            clearTimeout(loadingTimeout);
+            loadingIcon.style.display = 'none';
+
+            if (modelData.error) {
+              modelResultsDiv.innerHTML += `
+                <div class="model-box">
+                  <h2>${modelName}</h2>
+                  <p>Error: No se pudo obtener el modelo.</p>
+                </div>
+              `;
+              return;
+            }
+
+            let hyperparametersHTML = "";
+            for (const [key, value] of Object.entries(modelData.hyperparameters)) {
+              hyperparametersHTML += `<p><strong>${key}:</strong> ${value}</p>`;
+            }
+
+            const metricValue = modelData.metric_value !== undefined ? modelData.metric_value : "No registrado";
+            const randomState = modelData.random_state !== undefined ? modelData.random_state : "No registrado";
+            const mlflowLink = modelData.mlflow_link !== undefined ? modelData.mlflow_link : "#";
+
+            modelResultsDiv.innerHTML += `
+              <div class="model-box">
+                <h2>${modelName}</h2>
+                <p><strong>Accuracy:</strong> ${(metricValue * 100).toFixed(2)}%</p>
+                <p><strong>Random State:</strong> ${randomState}</p>
+                <p><strong>MLflow Run:</strong> <a href="${mlflowLink}" target="_blank" class="mlflow-link">Ver en MLflow</a></p>
+                <div>
+                  <h3>Hiperparámetros:</h3>
+                  ${hyperparametersHTML}
+                </div>
+              </div>
+            `;
+          }
+
+          const models = [
+            { type: "logistic_regression", name: "Regresión Logística" },
+            { type: "random_forest", name: "Random Forest" },
+            { type: "svm", name: "Support Vector Machine (SVM)" },
+            { type: "xgboost", name: "XGBoost" }
+          ];
+
+          for (const model of models) {
+            await showBestModel(model.type, model.name);
+          }
+        });
+      </script>
+    </section>
+    <!-- End Best Model Section -->
+  </div>
+
+  <!-- jQuery -->
+  <script src="js/jquery-3.4.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="js/bootstrap.js"></script>
+</body>
+</html>

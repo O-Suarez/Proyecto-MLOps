@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Búsqueda de Hiperparámetros</title>
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
+  <!-- Custom styles for this template -->
+  <link href="css/style.css" rel="stylesheet">
+  <link href="css/responsive.css" rel="stylesheet">
+  <style>
+    .central-align {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    #searchForm label {
+      color: white;
+    }
+    #resultsTable {
+      margin-top: 20px;
+      color: white;
+    }
+    #resultsTable th, #resultsTable td {
+      border: 1px solid white;
+      padding: 5px;
+    }
+    #resultsTable {
+      border-collapse: collapse;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero_area">
+    <!-- Header section starts -->
+    <header class="header_section">
+      <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg custom_nav-container">
+          <a class="navbar-brand" href="index.html">
+            <span>Proyecto: Desigualdad de género en Wikipedia</span>
+          </a>
+          <button class="navbar-toggler" type="button" data-toggle="collapse"
+                  data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                  aria-expanded="false" aria-label="Toggle navigation">
+            <span class=""> </span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav ml-auto">
+              <li class="nav-item">
+                <a class="nav-link" href="index.html">Predecir</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="train.html">Entrenar</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="model.html">Mejor Modelo</a>
+              </li>
+              <li class="nav-item active">
+                <a class="nav-link" href="search.html">Búsqueda de Parámetros</a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </div>
+    </header>
+    <!-- End header section -->
+    
+    <!-- Hyperparameter Search Section -->
+    <section class="slider_section">
+      <div class="container central-align">
+        <div class="detail-box">
+          <h1>Búsqueda de Hiperparámetros</h1>
+          <p>Selecciona un modelo y define los rangos de hiperparámetros para la búsqueda.</p>
+        </div>
+        <form id="searchForm" class="central-align">
+          <div class="form-group">
+            <label for="modelType">Tipo de Modelo:</label>
+            <select id="modelType" name="modelType" class="form-control">
+              <option value="">Selecciona un modelo</option>
+              <option value="random_forest">Random Forest</option>
+              <option value="svm">Support Vector Machine (SVM)</option>
+              <option value="xgboost">XGBoost</option>
+              <option value="logistic_regression">Logistic Regression</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="searchMethod">Método de Búsqueda:</label>
+            <select id="searchMethod" name="searchMethod" class="form-control">
+              <option value="grid_search">Grid Search</option>
+              <option value="halving_random_search">Halving Random Search</option>
+            </select>
+          </div>
+          <div id="paramDistributions" class="form-group">
+            <!-- Parameter distributions will be dynamically added here -->
+          </div>
+          <div class="form-group">
+            <label for="cv">Número de Folds de Validación Cruzada:</label>
+            <input type="number" id="cv" name="cv" class="form-control" value="5">
+          </div>
+          <button type="submit" class="btn btn-primary" id="searchButton">Iniciar Búsqueda</button>
+          <button type="button" class="btn btn-danger" id="stopButton" style="display: none; margin-top: 15px;">Detener Búsqueda</button>
+        </form>
+        
+        <img id="loadingAnimation" src="images/loading.gif" alt="Loading..." style="display: none; width: 50px; height: 50px; margin-top: 25px;">
+        <p id="search-message" style="color: white; margin-top: 10px;"></p>
+        <div id="timer" style="margin-top: 10px; color: white;"></div>
+        <table id="resultsTable" style="display: none;">
+          <thead>
+            <tr>
+              <th>Iteración</th>
+              <th>Hiperparámetros</th>
+              <th>Puntuación</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Results will be added here -->
+          </tbody>
+        </table>
+      </div>
+
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const modelTypeSelect = document.getElementById("modelType");
+          const searchMethodSelect = document.getElementById("searchMethod");
+          const paramDistributionsDiv = document.getElementById("paramDistributions");
+          const searchButton = document.getElementById("searchButton");
+          const stopButton = document.getElementById("stopButton");
+          const loadingAnimation = document.getElementById("loadingAnimation");
+          const timerElement = document.getElementById("timer");
+          const searchMessage = document.getElementById("search-message");
+          const resultsTable = document.getElementById("resultsTable");
+          const resultsTableBody = resultsTable.querySelector("tbody");
+
+          let startTime;
+          let timerInterval;
+          let abortController;
+
+          function updateTimer() {
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000); // in seconds
+            timerElement.innerText = `Tiempo de espera: ${elapsedTime} segundos`;
+          }
+
+          function cleanup() {
+            clearInterval(timerInterval);
+            searchButton.disabled = false;
+            stopButton.style.display = 'none';
+            loadingAnimation.style.display = 'none';
+            timerElement.innerText += ' (detenido)';
+          }
+
+          modelTypeSelect.addEventListener("change", function() {
+            paramDistributionsDiv.innerHTML = ""; 
+            const selectedModel = modelTypeSelect.value;
+
+            if (selectedModel === "logistic_regression") {
+              paramDistributionsDiv.innerHTML += `
+                <label for="penalty">Penalty (separa valores por comas):</label>
+                <input type="text" id="penalty" name="penalty" class="form-control" value="l1,l2,elasticnet"><br>
+
+                <label for="C">C (separa valores por comas):</label>
+                <input type="text" id="C" name="C" class="form-control" value="0.01,0.1,1,10,100"><br>
+
+                <label for="solver">Solver (separa valores por comas):</label>
+                <input type="text" id="solver" name="solver" class="form-control" value="lbfgs,saga,liblinear"><br>
+
+                <!-- l1_ratio field, initially hidden -->
+                <div id="l1_ratio_div" style="display: none;">
+                  <label for="l1_ratio">l1_ratio (separa valores por comas):</label>
+                  <input type="text" id="l1_ratio" name="l1_ratio" class="form-control" value="0.1,0.5,1.0"><br>
+                </div>
+              `;
+
+              const penaltyInput = document.getElementById("penalty");
+              const solverInput = document.getElementById("solver");
+              const l1RatioDiv = document.getElementById("l1_ratio_div");
+
+              function updateFields() {
+                const penalties = penaltyInput.value.split(',').map(v => v.trim());
+                const solvers = solverInput.value.split(',').map(v => v.trim());
+
+                // Show or hide l1_ratio field
+                if (penalties.includes('elasticnet')) {
+                  l1RatioDiv.style.display = 'block';
+                } else {
+                  l1RatioDiv.style.display = 'none';
+                }
+
+                // Adjust solver options based on penalties
+                const validSolvers = new Set();
+
+                penalties.forEach(penalty => {
+                  if (penalty === 'l1') {
+                    validSolvers.add('liblinear');
+                    validSolvers.add('saga');
+                  } else if (penalty === 'l2') {
+                    validSolvers.add('lbfgs');
+                    validSolvers.add('sag');
+                    validSolvers.add('saga');
+                    validSolvers.add('newton-cg');
+                    validSolvers.add('liblinear');
+                  } else if (penalty === 'elasticnet') {
+                    validSolvers.add('saga');
+                  } else if (penalty === 'none') {
+                    validSolvers.add('lbfgs');
+                    validSolvers.add('sag');
+                    validSolvers.add('saga');
+                    validSolvers.add('newton-cg');
+                  }
+                });
+
+                // Filter solvers to only include valid ones
+                const solverValues = solverInput.value.split(',').map(v => v.trim());
+                const filteredSolvers = solverValues.filter(solver => validSolvers.has(solver));
+                solverInput.value = filteredSolvers.join(',');
+              }
+
+              penaltyInput.addEventListener('input', updateFields);
+              solverInput.addEventListener('input', updateFields);
+              updateFields(); // Initial call
+
+            } else if (selectedModel === "random_forest") {
+              paramDistributionsDiv.innerHTML += `
+                <label for="n_estimators">Número de Estimadores (separa valores por comas):</label>
+                <input type="text" id="n_estimators" name="n_estimators" class="form-control" value="50,100,200"><br>
+
+                <label for="max_depth">Max Depth (separa valores por comas):</label>
+                <input type="text" id="max_depth" name="max_depth" class="form-control" value="1,5,10,20"><br>
+
+                <label for="min_samples_split">Min Samples Split (separa valores por comas):</label>
+                <input type="text" id="min_samples_split" name="min_samples_split" class="form-control" value="2,5,10"><br>
+
+                <label for="min_samples_leaf">Min Samples Leaf (separa valores por comas):</label>
+                <input type="text" id="min_samples_leaf" name="min_samples_leaf" class="form-control" value="1,2,4"><br>
+              `;
+            } else if (selectedModel === "svm") {
+              paramDistributionsDiv.innerHTML += `
+                <label for="C">C (separa valores por comas):</label>
+                <input type="text" id="C" name="C" class="form-control" value="0.1,1,10,100"><br>
+
+                <label for="kernel">Kernel (separa valores por comas):</label>
+                <input type="text" id="kernel" name="kernel" class="form-control" value="linear,rbf,poly,sigmoid"><br>
+
+                <label for="gamma">Gamma (separa valores por comas):</label>
+                <input type="text" id="gamma" name="gamma" class="form-control" value="scale,auto"><br>
+              `;
+            } else if (selectedModel === "xgboost") {
+              paramDistributionsDiv.innerHTML += `
+                <label for="n_estimators">Número de Estimadores (separa valores por comas):</label>
+                <input type="text" id="n_estimators" name="n_estimators" class="form-control" value="50,100,200"><br>
+
+                <label for="learning_rate">Learning Rate (separa valores por comas):</label>
+                <input type="text" id="learning_rate" name="learning_rate" class="form-control" value="0.01,0.1,0.2"><br>
+
+                <label for="max_depth">Max Depth (separa valores por comas):</label>
+                <input type="text" id="max_depth" name="max_depth" class="form-control" value="3,6,9"><br>
+
+                <label for="subsample">Subsample (separa valores por comas):</label>
+                <input type="text" id="subsample" name="subsample" class="form-control" value="0.5,0.7,1.0"><br>
+
+                <label for="colsample_bytree">Colsample Bytree (separa valores por comas):</label>
+                <input type="text" id="colsample_bytree" name="colsample_bytree" class="form-control" value="0.5,0.7,1.0"><br>
+              `;
+            }
+          });
+
+          searchForm.addEventListener("submit", function(event) {
+            event.preventDefault();
+            startTime = Date.now();
+            timerElement.innerText = 'Tiempo de espera: 0 segundos';
+            timerInterval = setInterval(updateTimer, 1000);
+
+            searchButton.disabled = true;
+            stopButton.style.display = 'inline-block';
+            stopButton.style.marginTop = '15px';
+            loadingAnimation.style.display = 'block';
+            searchMessage.textContent = "";
+            resultsTable.style.display = 'none';
+            resultsTableBody.innerHTML = '';
+            abortController = new AbortController();
+
+            const formData = new FormData(event.target);
+            const modelType = formData.get("modelType");
+            const searchMethod = formData.get("searchMethod");
+
+            if (!modelType) {
+              alert("Por favor, selecciona un modelo para la búsqueda.");
+              cleanup();
+              return;
+            }
+
+            const paramDistributions = {};
+            formData.forEach((value, key) => {
+              if (key !== "modelType" && key !== "cv" && key !== "searchMethod" && value) {
+                const values = value.split(",").map(v => v.trim());
+                paramDistributions[key] = values.map(v => {
+                  if (v.toLowerCase() === "none") return null;
+                  if (!isNaN(v)) return parseFloat(v);
+                  return v;
+                });
+              }
+            });
+
+            const cv = parseInt(formData.get("cv")) || 5;
+
+            // For logistic regression, filter out invalid combinations
+            if (modelType === "logistic_regression") {
+              const penalties = paramDistributions['penalty'] || [];
+              const solvers = paramDistributions['solver'] || [];
+              const l1_ratios = paramDistributions['l1_ratio'] || [];
+
+              const validCombinations = [];
+
+              // Generate all combinations
+              penalties.forEach(penalty => {
+                solvers.forEach(solver => {
+                  // Check compatibility
+                  let isValid = true;
+                  const combination = { penalty, solver };
+
+                  if (penalty === 'elasticnet') {
+                    if (solver !== 'saga') {
+                      isValid = false;
+                    } else {
+                      l1_ratios.forEach(l1_ratio => {
+                        validCombinations.push({ ...combination, l1_ratio });
+                      });
+                      isValid = false; // We've already added valid combinations with l1_ratio
+                    }
+                  } else if (penalty === 'l1') {
+                    if (!['liblinear', 'saga'].includes(solver)) {
+                      isValid = false;
+                    }
+                  } else if (penalty === 'l2') {
+                    if (['liblinear', 'lbfgs', 'sag', 'saga', 'newton-cg'].includes(solver)) {
+                      // Valid combination
+                    } else {
+                      isValid = false;
+                    }
+                  } else if (penalty === 'none') {
+                    if (!['lbfgs', 'sag', 'saga', 'newton-cg'].includes(solver)) {
+                      isValid = false;
+                    }
+                  } else {
+                    isValid = false;
+                  }
+
+                  if (isValid) {
+                    validCombinations.push(combination);
+                  }
+                });
+              });
+
+              if (validCombinations.length === 0) {
+                alert("No hay combinaciones válidas de penalty y solver. Por favor, ajusta tus hiperparámetros.");
+                cleanup();
+                return;
+              }
+
+              // Update param_distributions with valid combinations
+              paramDistributions['penalty'] = [...new Set(validCombinations.map(c => c.penalty))];
+              paramDistributions['solver'] = [...new Set(validCombinations.map(c => c.solver))];
+
+              if (l1_ratios.length > 0 && penalties.includes('elasticnet')) {
+                paramDistributions['l1_ratio'] = l1_ratios;
+              } else if (penalties.includes('elasticnet')) {
+                alert("Debe especificar l1_ratio cuando penalty incluye 'elasticnet'.");
+                cleanup();
+                return;
+              }
+            }
+
+            const data = {
+              classifier_type: modelType,
+              param_distributions: paramDistributions,
+              cv: cv,
+              search_method: searchMethod
+            };
+
+            fetch("http://localhost:8887/hyperparameter_search", {
+              method: "POST",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify(data),
+              signal: abortController.signal
+            }).then(response => {
+              const reader = response.body.getReader();
+              const decoder = new TextDecoder();
+              function read() {
+                reader.read().then(({done, value}) => {
+                  if (done) {
+                    cleanup();
+                    searchMessage.textContent = "Búsqueda completada.";
+                    timerElement.innerText += ' (completado)';
+                    return;
+                  }
+                  const chunk = decoder.decode(value, {stream: true});
+                  const lines = chunk.split("\n");
+                  for (let line of lines) {
+                    if (line.trim()) {
+                      const result = JSON.parse(line);
+                      if (result.error) {
+                        cleanup();
+                        searchMessage.textContent = `Error: ${result.error}`;
+                        timerElement.innerText += ' (error)';
+                        return;
+                      }
+                      // Update the UI with the result
+                      resultsTable.style.display = 'table';
+                      const row = document.createElement('tr');
+                      const iterationCell = document.createElement('td');
+                      const paramsCell = document.createElement('td');
+                      const scoreCell = document.createElement('td');
+
+                      iterationCell.textContent = result.iteration;
+                      paramsCell.textContent = JSON.stringify(result.params);
+                      scoreCell.textContent = result.score.toFixed(4);
+
+                      row.appendChild(iterationCell);
+                      row.appendChild(paramsCell);
+                      row.appendChild(scoreCell);
+                      resultsTableBody.appendChild(row);
+                    }
+                  }
+                  read();
+                }).catch(error => {
+                  cleanup();
+                  if (error.name === 'AbortError') {
+                    searchMessage.textContent = "Búsqueda detenida por el usuario.";
+                    timerElement.innerText += ' (detenido por el usuario)';
+                  } else {
+                    searchMessage.textContent = `Error: ${error.message}`;
+                    timerElement.innerText += ' (error)';
+                  }
+                });
+              }
+              read();
+            }).catch(error => {
+              cleanup();
+              searchMessage.textContent = `Error: ${error.message}`;
+              timerElement.innerText += ' (error)';
+            });
+          });
+
+          stopButton.addEventListener("click", function() {
+            if (abortController) {
+              abortController.abort();
+            }
+            cleanup();
+          });
+
+        });
+      </script>
+    </section>
+    <!-- End Hyperparameter Search Section -->
+  </div>
+
+  <!-- jQuery -->
+  <script src="js/jquery-3.4.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="js/bootstrap.js"></script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Entrenamiento de modelos</title>
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
+  <!-- Custom styles for this template -->
+  <link href="css/style.css" rel="stylesheet">
+  <link href="css/responsive.css" rel="stylesheet">
+  <style>
+    .central-align {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    #trainForm label {
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero_area">
+    <!-- Header section starts -->
+    <header class="header_section">
+      <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg custom_nav-container">
+          <a class="navbar-brand" href="index.html">
+            <span>Proyecto: Desigualdad de género en Wikipedia</span>
+          </a>
+          <button class="navbar-toggler" type="button" data-toggle="collapse"
+                  data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                  aria-expanded="false" aria-label="Toggle navigation">
+            <span class=""> </span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav ml-auto">
+              <li class="nav-item">
+                <a class="nav-link" href="index.html">Predecir</a>
+              </li>
+              <li class="nav-item active">
+                <a class="nav-link" href="train.html">Entrenar</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="model.html">Mejor Modelo</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="search.html">Busqueda de parametros</a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </div>
+    </header>
+    <!-- End header section -->
+    
+    <!-- Train Model Section -->
+    <section class="slider_section">
+      <div class="container central-align">
+        <div class="detail-box">
+          <h1>Entrenar el Modelo</h1>
+          <p>Selecciona un modelo y ajusta los hiperparámetros para entrenar.</p>
+        </div>
+        <form id="trainForm" class="central-align">
+          <div class="form-group">
+            <label for="modelType">Tipo de Modelo:</label>
+            <select id="modelType" name="modelType" class="form-control">
+              <option value="">Selecciona un modelo</option>
+              <option value="logistic_regression">Logistic Regression</option>
+              <option value="random_forest">Random Forest</option>
+              <option value="svm">Support Vector Machine (SVM)</option>
+              <option value="xgboost">XGBoost</option>
+            </select>
+          </div>
+          <div id="hyperparameters" class="form-group">
+            <!-- Hyperparameters will be dynamically added here -->
+          </div>
+          <button type="submit" class="btn btn-primary" id="trainButton">Entrenar</button>
+        </form>
+        
+        <img id="loadingAnimation" src="images/loading.gif" alt="Loading..." style="display: none; width: 50px; height: 50px; margin-top: 25px;">
+        <p id="train-message" style="color: white; margin-top: 10px;"></p>
+        <p id="accuracy-label" style="display: none; color: white;">Precisión del modelo: <span id="accuracy-value"></span></p>
+        <div id="timer" style="margin-top: 10px; color: white;"></div>
+      </div>
+
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const modelTypeSelect = document.getElementById("modelType");
+          const hyperparametersDiv = document.getElementById("hyperparameters");
+          const trainButton = document.getElementById("trainButton");
+          const loadingAnimation = document.getElementById("loadingAnimation");
+          const timerElement = document.getElementById("timer");
+          const trainMessage = document.getElementById("train-message");
+          const accuracyLabel = document.getElementById("accuracy-label");
+          const accuracyValue = document.getElementById("accuracy-value");
+
+          let startTime;
+          let timerInterval;
+
+          function updateTimer() {
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000); // in seconds
+            timerElement.innerText = `Tiempo de espera: ${elapsedTime} segundos`;
+          }
+
+          function cleanup() {
+            clearInterval(timerInterval);
+            trainButton.disabled = false;
+            loadingAnimation.style.display = 'none';
+            timerElement.innerText += ' (detenido)';
+          }
+
+          modelTypeSelect.addEventListener("change", function() {
+            hyperparametersDiv.innerHTML = ""; 
+            const selectedModel = modelTypeSelect.value;
+
+            if (selectedModel === "logistic_regression") {
+              hyperparametersDiv.innerHTML += `
+                <label for="penalty">Penalty:</label>
+                <select id="penalty" name="penalty" class="form-control">
+                  <option value="l2" selected>L2 (default)</option>
+                </select><br>
+
+                <label for="max_iter">Max Iterations:</label>
+                <input type="number" id="max_iter" name="max_iter" class="form-control" value="100"><br>
+
+                <label for="solver">Solver:</label>
+                <select id="solver" name="solver" class="form-control">
+                  <option value="lbfgs" selected>lbfgs (default)</option>
+                  <option value="saga">saga</option>
+                  <option value="newton-cg">newton-cg</option>
+                </select><br>
+              `;
+            } else if (selectedModel === "random_forest") {
+              hyperparametersDiv.innerHTML += `
+                <label for="n_estimators">Number of Estimators:</label>
+                <input type="number" id="n_estimators" name="n_estimators" class="form-control" value="100"><br>
+
+                <label for="max_depth">Max Depth:</label>
+                <input type="number" id="max_depth" name="max_depth" class="form-control" value="2"><br>
+
+                <label for="min_samples_split">Minimum Samples Split:</label>
+                <input type="number" id="min_samples_split" name="min_samples_split" class="form-control" value="2"><br>
+
+                <label for="min_samples_leaf">Minimum Samples Leaf:</label>
+                <input type="number" id="min_samples_leaf" name="min_samples_leaf" class="form-control" value="1"><br>
+              `;
+            } else if (selectedModel === "svm") {
+              hyperparametersDiv.innerHTML += `
+                <label for="kernel">Kernel Type:</label>
+                <select id="kernel" name="kernel" class="form-control">
+                  <option value="rbf" selected>RBF (default)</option>
+                  <option value="linear">Linear</option>
+                  <option value="poly">Polynomial</option>
+                  <option value="sigmoid">Sigmoid</option>
+                </select><br>
+
+                <label for="C">Regularization Parameter (C):</label>
+                <input type="number" id="C" name="C" class="form-control" step="0.01" value="1.0"><br>
+
+                <label for="gamma">Gamma:</label>
+                <select id="gamma" name="gamma" class="form-control">
+                  <option value="scale" selected>Scale (default)</option>
+                  <option value="auto">Auto</option>
+                </select><br>
+              `;
+            } else if (selectedModel === "xgboost") {
+              hyperparametersDiv.innerHTML += `
+                <label for="n_estimators">Number of Estimators:</label>
+                <input type="number" id="n_estimators" name="n_estimators" class="form-control" value="100"><br>
+
+                <label for="learning_rate">Learning Rate:</label>
+                <input type="number" id="learning_rate" name="learning_rate" class="form-control" step="0.01" value="0.1"><br>
+
+                <label for="max_depth">Max Depth:</label>
+                <input type="number" id="max_depth" name="max_depth" class="form-control" value="6"><br>
+
+                <label for="subsample">Subsample:</label>
+                <input type="number" id="subsample" name="subsample" class="form-control" step="0.1" value="1.0"><br>
+
+                <label for="colsample_bytree">Colsample Bytree:</label>
+                <input type="number" id="colsample_bytree" name="colsample_bytree" class="form-control" step="0.1" value="1.0"><br>
+              `;
+            }
+          });
+
+          document.getElementById("trainForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+            startTime = Date.now();
+            timerElement.innerText = 'Tiempo de espera: 0 segundos';
+            timerInterval = setInterval(updateTimer, 1000);
+
+            trainButton.disabled = true;
+            loadingAnimation.style.display = 'block';
+            trainMessage.textContent = "";
+
+            const formData = new FormData(event.target);
+            const modelType = formData.get("modelType");
+
+            if (!modelType) {
+              alert("Por favor, selecciona un modelo para entrenar.");
+              cleanup();
+              return;
+            }
+
+            const hyperparameters = {};
+            formData.forEach((value, key) => {
+              if (key !== "modelType" && value) {
+                hyperparameters[key] = isNaN(value) ? value : Number(value);
+              }
+            });
+
+            const data = {
+              classifier_type: modelType,
+              hyperparameters: hyperparameters,
+              additional_data: []
+            };
+
+            try {
+              const response = await fetch("http://localhost:8887/train", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+              });
+
+              const result = await response.json();
+              cleanup();
+
+              if (response.ok && result.accuracy !== undefined) {
+                trainMessage.textContent = "Entrenamiento completado exitosamente.";
+                accuracyLabel.style.display = 'block';
+                accuracyValue.textContent = (result.accuracy * 100).toFixed(2) + "%";
+                timerElement.innerText += ' (completado)';
+              } else {
+                trainMessage.textContent = `Error: ${result.error || "Error desconocido"}`;
+                timerElement.innerText += ' (error)';
+              }
+            } catch (error) {
+              alert(`Error: ${error.message}`);
+              timerElement.innerText += ' (error)';
+              cleanup();
+            }
+          });
+        });
+      </script>
+    </section>
+    <!-- End Train Model Section -->
+  </div>
+
+  <!-- jQuery -->
+  <script src="js/jquery-3.4.1.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="js/bootstrap.js"></script>
+</body>
+</html>
