@@ -50,10 +50,12 @@ def get_feature_names(column_transformer, input_features):
 def get_data(main_columns=['NEds', 'NActDays', 'pagesWomen', 'wikiprojWomen'],
              raw_data="modeling/data/data.csv", random_state=42):
     raw_data = data_loading.load_wikipedia(raw_data)
-    transformed_data = remove_missing_values(raw_data)
+    transformed_data = raw_data
+    transformed_data = raw_data[raw_data.gender != 0]
+    #transformed_data = remove_missing_values(raw_data)
 
     numeric_columns = transformed_data.select_dtypes(include=[np.number]).columns
-    transformed_data = remove_outliers(transformed_data, numeric_columns)
+    #transformed_data = remove_outliers(transformed_data, numeric_columns)
     
     X = transformed_data[main_columns].copy()
     y = transformed_data["gender"]
