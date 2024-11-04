@@ -2,8 +2,8 @@
 FROM python:3.11-slim
 
 # Establecemos las variables de entorno para evitar la interacción durante la instalación
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Configuramos la zona horaria a América/Mexico_City
 RUN ln -snf /usr/share/zoneinfo/America/Mexico_City /etc/localtime && echo 'America/Mexico_City' > /etc/timezone
