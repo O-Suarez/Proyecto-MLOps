@@ -1,7 +1,7 @@
 import requests
 
 
-BASE_URL = "http://dev.logaritmia.mx:8887"
+BASE_URL = "http://localhost:8887"
 
 
 def test_api_is_running():
