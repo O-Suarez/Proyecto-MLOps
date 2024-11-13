@@ -15,10 +15,9 @@ from starlette.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, List
 import pandas as pd
-import random
 
 import xgboost as xgb
-from modeling import model_training, preprocess, data_loading
+from modeling import model_training, preprocess
 import logging
 import uvicorn
 import matplotlib
